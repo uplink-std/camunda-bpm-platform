@@ -18,43 +18,49 @@ package org.camunda.bpm.engine.cdi.impl;
 
 import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
+
 import javax.enterprise.concurrent.ManagedExecutorService;
-import javax.enterprise.concurrent.ManagedThreadFactory;
+import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.impl.ProcessEngineImpl;
 import org.camunda.bpm.engine.impl.jobexecutor.JobExecutor;
-import org.camunda.bpm.engine.impl.jobexecutor.ThreadPoolJobExecutor;
 
 /**
- * {@link JobExecutor} implementation that utilises an application server's managed thread pool to acquire and execute jobs.
+ * {@link JobExecutor} implementation that utilises an application server's
+ * managed thread pool to acquire and execute jobs.
  */
-public class ManagedJobExecutor extends ThreadPoolJobExecutor {
+public class ManagedJobExecutor extends JobExecutor {
 
-    private ManagedExecutorService managedExecutorService;
-    private ManagedThreadFactory managedThreadFactory;
+  private ManagedExecutorService managedExecutorService;
 
-    /**
-     * Constructs a new ManagedJobExecutor with the provided {@link ManagedExecutorService} and {@link ManagedThreadFactory}.
-     */
-    public ManagedJobExecutor(final ManagedExecutorService managedExecutorService, final ManagedThreadFactory managedThreadFactory) {
-        this.managedExecutorService = managedExecutorService;
-        this.managedThreadFactory = managedThreadFactory;
+  /**
+   * Constructs a new ManagedJobExecutor with the provided
+   * {@link ManagedExecutorService}
+   */
+  public ManagedJobExecutor(final ManagedExecutorService managedExecutorService) {
+    this.managedExecutorService = managedExecutorService;
+  }
+
+  @Override
+  public void executeJobs(List<String> jobIds, ProcessEngineImpl processEngine) {
+    try {
+      managedExecutorService.execute(getExecuteJobsRunnable(jobIds, processEngine));
+    } catch (RejectedExecutionException e) {
+      logRejectedExecution(processEngine, jobIds.size());
+      rejectedJobsHandler.jobsRejected(jobIds, processEngine, this);
     }
+  }
 
-    @Override
-    public void executeJobs(List<String> jobIds, ProcessEngineImpl processEngine) {
-        try {
-            managedExecutorService.execute(getExecuteJobsRunnable(jobIds, processEngine));
-        } catch (RejectedExecutionException e) {
-            logRejectedExecution(processEngine, jobIds.size());
-            rejectedJobsHandler.jobsRejected(jobIds, processEngine, this);
-        }
+  @Override
+  protected void startExecutingJobs() {
+    try {
+      managedExecutorService.execute(acquireJobsRunnable);
+    } catch (Exception e) {
+      throw new ProcessEngineException("Could not schedule AcquireJobsRunnable for execution.", e);
     }
+  }
 
-    @Override
-    protected void startJobAcquisitionThread() {
-        if (jobAcquisitionThread == null) {
-            jobAcquisitionThread = managedThreadFactory.newThread(acquireJobsRunnable);
-            jobAcquisitionThread.start();
-        }
-    }
+  @Override
+  protected void stopExecutingJobs() {
+    // nothing to do
+  }
 }

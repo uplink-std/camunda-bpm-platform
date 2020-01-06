@@ -22,7 +22,6 @@ import javax.annotation.Resource;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.enterprise.concurrent.ManagedExecutorService;
-import javax.enterprise.concurrent.ManagedThreadFactory;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.cdi.impl.ManagedJobExecutor;
 import org.camunda.bpm.engine.impl.cfg.JtaProcessEngineConfiguration;
@@ -33,9 +32,6 @@ public class ManagedJobExecutorBean {
 
   @Resource
   private ManagedExecutorService managedExecutorService;
-
-  @Resource
-  private ManagedThreadFactory managedThreadFactory;
 
   protected ProcessEngine processEngine;
   protected ManagedJobExecutor jobExecutor;
@@ -48,7 +44,7 @@ public class ManagedJobExecutorBean {
       .setDbMetricsReporterActivate(false)
       .setDataSourceJndiName("java:jboss/datasources/ProcessEngine");
     processEngineConfiguration.setTransactionManagerJndiName("java:/TransactionManager");
-    jobExecutor = new ManagedJobExecutor(managedExecutorService, managedThreadFactory);
+    jobExecutor = new ManagedJobExecutor(managedExecutorService);
     processEngine = processEngineConfiguration
         .setJobExecutor(jobExecutor)
         .buildProcessEngine();
