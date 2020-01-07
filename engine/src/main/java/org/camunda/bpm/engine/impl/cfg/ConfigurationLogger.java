@@ -103,4 +103,10 @@ public class ConfigurationLogger extends ProcessEngineLogger {
       "Exception on closing the database connection: {}", cause.getMessage());
   }
 
+  public void invalidBatchTypeForInvocationsPerBatchJob(String batchType) {
+    logWarn(
+        "014", "The configuration property 'invocationsPerJobByBatchType' " +
+            "contains an unregistered batch type '" + batchType + "'");
+  }
+
 }
